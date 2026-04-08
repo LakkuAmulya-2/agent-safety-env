@@ -312,6 +312,13 @@ else:
 
 # â”€â”€ AgentOps endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """Redirect root to Gradio UI for HF Spaces compatibility."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/web", status_code=307)
+
+
 @app.get("/metrics", tags=["AgentOps"])
 async def get_metrics():
     """
