@@ -534,12 +534,12 @@ class AgentSafetyEnvironment(Environment):
                 llm_score = judge_result.llm_score if judge_result.judge_used == "llm+rules" else None
             except Exception:
                 ops.record_judge_failure()
-                turn_score = rule_result.score
+                turn_score = _clamp_score(rule_result.score)
                 judge_used = "rules_only_fallback"
                 judge_latency = 0.0
                 llm_score = None
         else:
-            turn_score = rule_result.score
+            turn_score = _clamp_score(rule_result.score)
             judge_used = "rules_only_circuit_open"
             judge_latency = 0.0
             llm_score = None

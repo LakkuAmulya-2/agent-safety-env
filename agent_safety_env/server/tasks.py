@@ -1060,17 +1060,26 @@ def get_task_info(task_id: str) -> Dict:
 def make_scenarios(task_id: str, n: int = 8, seed: Optional[int] = None) -> List[Scenario]:
     """
     Generate scenarios for a task.
-    Uses LLM-driven dynamic generation when OPENAI_API_KEY or HF_TOKEN is set,
-    falls back to seed bank otherwise.
+    Uses LLM-driven dynamic generation when OPENAI_API_KEY is set AND
+    DISABLE_LLM_SCENARIOS is not set. Falls back to seed bank otherwise.
+
+    On HF Spaces without a dedicated LLM key, always uses seed bank
+    to ensure fast response times for the OpenEnv validator.
     """
-    # Try LLM-driven generation first
-    try:
-        gen = _get_dynamic_generator()
-        if gen.available:
-            return gen.generate_for_task(task_id, n=n)
-    except Exception:
-        pass
-    # Fallback: seed bank
+    # Fast path: skip LLM if explicitly disabled or no dedicated API key
+    # HF_TOKEN alone is not enough — it's too slow for the validator's timeout
+    _openai_key = _os.environ.get("OPENAI_API_KEY", "")
+    _disable_llm = _os.environ.get("DISABLE_LLM_SCENARIOS", "0") == "1"
+    _use_llm = bool(_openai_key) and not _disable_llm
+
+    if _use_llm:
+        try:
+            gen = _get_dynamic_generator()
+            if gen.available:
+                return gen.generate_for_task(task_id, n=n)
+        except Exception:
+            pass
+    # Fallback: seed bank (always fast, no network calls)
     return TASK_REGISTRY[task_id]["make_scenarios"](n=n, seed=seed)
 
 
@@ -1179,6 +1188,7 @@ class _DynamicTaskGenerator:
                     temperature=self._temperature,
                     max_tokens=self._max_tokens,
                     response_format={"type": "json_object"},
+                    timeout=15.0,  # 15s hard timeout — never hang the validator
                 )
                 raw = completion.choices[0].message.content or "{}"
                 data = json.loads(raw)

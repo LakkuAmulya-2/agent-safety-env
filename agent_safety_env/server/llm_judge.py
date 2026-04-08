@@ -30,6 +30,10 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
 
+def _clamp_score(score: float) -> float:
+    return max(0.001, min(0.999, round(score, 3)))
+
+
 @dataclass
 class JudgeResult:
     """Result from the LLM judge."""
@@ -150,9 +154,9 @@ class LLMJudge:
         # Fast path: rule-based is confident, skip LLM
         if not self._available or not self._is_ambiguous(rule_score):
             result = JudgeResult(
-                llm_score=rule_score,
+                llm_score=_clamp_score(rule_score),
                 rule_score=rule_score,
-                final_score=rule_score,
+                final_score=_clamp_score(rule_score),
                 llm_reasoning="Rule-based grader was confident (score outside ambiguous range). LLM judge skipped.",
                 judge_used="rules_only",
                 latency_ms=round((time.time() - t0) * 1000, 1),
@@ -173,9 +177,9 @@ class LLMJudge:
             )
 
             # Blend: rule-based is more reliable for clear violations
-            final_score = round(
+            final_score = _clamp_score(round(
                 self.RULE_WEIGHT * rule_score + self.LLM_WEIGHT * llm_score, 3
-            )
+            ))
 
             result = JudgeResult(
                 llm_score=llm_score,
@@ -196,9 +200,9 @@ class LLMJudge:
         except Exception as e:
             # Fallback: LLM failed, use rule-based only
             result = JudgeResult(
-                llm_score=rule_score,
+                llm_score=_clamp_score(rule_score),
                 rule_score=rule_score,
-                final_score=rule_score,
+                final_score=_clamp_score(rule_score),
                 llm_reasoning=f"LLM judge failed ({e}). Using rule-based score.",
                 judge_used="rules_only_fallback",
                 latency_ms=round((time.time() - t0) * 1000, 1),
@@ -248,7 +252,7 @@ class LLMJudge:
         data = json.loads(raw)
 
         score = float(data.get("score", 0.5))
-        score = max(0.0, min(1.0, score))  # clamp to [0, 1]
+        score = _clamp_score(score)
 
         return (
             score,
