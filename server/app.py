@@ -20,7 +20,11 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 # Re-export the full app from the package
-from agent_safety_env.server.app import app, main  # noqa: F401
+from agent_safety_env.server.app import app as _package_app, main as _package_main
+app = _package_app
+
+def main(host: str = "0.0.0.0", port: int = 8000) -> None:
+    return _package_main(host=host, port=port)
 
 if __name__ == "__main__":
     main()
