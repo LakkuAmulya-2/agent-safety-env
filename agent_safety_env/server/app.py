@@ -319,6 +319,26 @@ async def root_redirect():
     return RedirectResponse(url="/web", status_code=307)
 
 
+# Mount Gradio UI explicitly for HF Spaces
+try:
+    import gradio as _gr
+    from .agent_safety_environment import WebManager as _WebManager
+    
+    # Create a minimal web manager for Gradio UI
+    _web_manager_instance = _WebManager()
+    _ui_blocks = _build_gradio_ui(
+        _web_manager_instance,
+        action_fields={},
+        metadata={},
+        is_chat_env=False,
+        title="AgentSafetyEnv",
+        quick_start_md=""
+    )
+    _gr.mount_gradio_app(app, _ui_blocks, path="/web")
+except Exception as _e:
+    print(f"Warning: Could not mount Gradio UI: {_e}")
+
+
 @app.get("/metrics", tags=["AgentOps"])
 async def get_metrics():
     """
